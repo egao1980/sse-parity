@@ -14,6 +14,11 @@ ROUTES = {
 }
 
 
+class Server(ThreadingHTTPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args: object) -> None:
         return
@@ -40,7 +45,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main() -> None:
     port = int(sys.argv[1] if len(sys.argv) > 1 else 0)
-    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    server = Server(("127.0.0.1", port), Handler)
     bound = server.server_address[1]
     print(f"SSE_PARITY_LISTEN {bound}", flush=True)
     server.serve_forever()
