@@ -46,13 +46,6 @@
     (usocket:socket-close sock)
     port))
 
-(defun %slurp-if-dead (stream)
-  "Slurp STREAM only after the child has exited so we do not block.
-   Do not use LISTEN — SBCL on macOS often reports NIL on a live pipe
-   that already has the listen line (empty stderr/stdout after 30s)."
-  (when stream
-    (ignore-errors (uiop:slurp-stream-string stream))))
-
 (defun %wait-peer-port (proc host port timeout)
   "Ready when 127.0.0.1:PORT accepts TCP. We already chose PORT; do not
    parse stdout (LISTEN on process pipes is unreliable on macOS SBCL)."
@@ -60,10 +53,8 @@
                      (* timeout internal-time-units-per-second))))
     (loop
       (unless (uiop:process-alive-p proc)
-        (error "peer server exited ~a~%stderr:~%~a~%stdout:~%~a"
-               (ignore-errors (uiop:wait-process proc))
-               (%slurp-if-dead (uiop:process-info-error-output proc))
-               (%slurp-if-dead (uiop:process-info-output proc))))
+        (error "peer server exited ~a"
+               (ignore-errors (uiop:wait-process proc))))
       (when (> (get-internal-real-time) deadline)
         (error "peer server did not accept ~a:~a within ~a s (alive=~a)"
                host port timeout (uiop:process-alive-p proc)))
@@ -77,23 +68,30 @@
         (error ()
           (sleep 0.05))))))
 
+(defun python3-bin ()
+  "System interpreter for the stdlib server. The uv venv python on
+   macos-latest CI stays alive but never bind()s when launched with
+   captured pipes (alive=T, TCP wait times out)."
+  (or (when (probe-file "/usr/bin/python3") "/usr/bin/python3")
+      (which "python3")
+      (which "python")))
+
 (defun python-cmd (script &rest args)
-  "Prefer the uv-sync venv. `uv run` on macos-latest CI can exceed 8s before
-   the listen line; server.py is stdlib-only so python3 is enough as fallback."
-  (let* ((script-path (uiop:native-namestring
-                       (merge-pathnames script (merge-pathnames "python/" *peer-root*))))
-         (venv (python-venv)))
+  (let ((script-path (uiop:native-namestring
+                      (merge-pathnames script (merge-pathnames "python/" *peer-root*)))))
     (cond
-      (venv
-       (list* (uiop:native-namestring venv) script-path args))
-      ((and (string= script "server.py") (which "python3"))
-       (list* (which "python3") script-path args))
+      ((string= script "server.py")
+       (list* (or (python3-bin)
+                  (error "no python3 for peer server"))
+              "-u" script-path args))
+      ((python-venv)
+       (list* (uiop:native-namestring (python-venv)) "-u" script-path args))
       ((which "uv")
        (list* (which "uv") "run" "--no-sync"
               "--project" (uiop:native-namestring (merge-pathnames "python/" *peer-root*))
-              "python" script-path args))
-      ((which "python3")
-       (list* (which "python3") script-path args))
+              "python" "-u" script-path args))
+      ((python3-bin)
+       (list* (python3-bin) "-u" script-path args))
       (t
        (error "no python runtime for peer ~a" script)))))
 
@@ -117,15 +115,17 @@
 
 (defun start-peer-server (kind &key (port (%free-port)) (timeout 30))
   (let* ((cmd (peer-command kind port))
+         (log (uiop:with-temporary-file (:pathname p :keep t)
+                p))
          (proc (uiop:launch-program cmd
-                                    :output :stream
-                                    :error-output :stream
-                                    :element-type 'character)))
+                                    :output log
+                                    :error-output :output)))
     (handler-case
         (%wait-peer-port proc "127.0.0.1" port timeout)
       (error (e)
         (ignore-errors (uiop:terminate-process proc :urgent t))
-        (error "~a~%cmd: ~s" e cmd)))
+        (error "~a~%cmd: ~s~%log:~%~a"
+               e cmd (ignore-errors (uiop:read-file-string log)))))
     (values proc port (format nil "http://127.0.0.1:~a" port))))
 
 (defun stop-peer-server (proc)
