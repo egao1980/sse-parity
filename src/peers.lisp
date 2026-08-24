@@ -46,25 +46,36 @@
     (usocket:socket-close sock)
     port))
 
-(defun %read-listen-line (stream timeout)
+(defun %slurp-if-dead (stream)
+  "Slurp STREAM only after the child has exited so we do not block.
+   Do not use LISTEN — SBCL on macOS often reports NIL on a live pipe
+   that already has the listen line (empty stderr/stdout after 30s)."
+  (when stream
+    (ignore-errors (uiop:slurp-stream-string stream))))
+
+(defun %wait-peer-port (proc host port timeout)
+  "Ready when 127.0.0.1:PORT accepts TCP. We already chose PORT; do not
+   parse stdout (LISTEN on process pipes is unreliable on macOS SBCL)."
   (let ((deadline (+ (get-internal-real-time)
                      (* timeout internal-time-units-per-second))))
     (loop
+      (unless (uiop:process-alive-p proc)
+        (error "peer server exited ~a~%stderr:~%~a~%stdout:~%~a"
+               (ignore-errors (uiop:wait-process proc))
+               (%slurp-if-dead (uiop:process-info-error-output proc))
+               (%slurp-if-dead (uiop:process-info-output proc))))
       (when (> (get-internal-real-time) deadline)
-        (error "peer server did not print listen line within ~a s" timeout))
-      (loop while (ignore-errors (listen stream))
-            for line = (read-line stream nil nil)
-            do (when (and line (search "SSE_PARITY_LISTEN" line))
-                 (return-from %read-listen-line line)))
-      (sleep 0.05))))
-
-(defun %slurp-available (stream)
-  (when stream
-    (with-output-to-string (out)
-      (loop while (ignore-errors (listen stream))
-            for line = (read-line stream nil nil)
-            while line
-            do (write-line line out)))))
+        (error "peer server did not accept ~a:~a within ~a s (alive=~a)"
+               host port timeout (uiop:process-alive-p proc)))
+      (handler-case
+          (progn
+            (usocket:socket-close
+             (usocket:socket-connect host port :timeout 0.2))
+            (return t))
+        (usocket:connection-refused-error ()
+          (sleep 0.05))
+        (error ()
+          (sleep 0.05))))))
 
 (defun python-cmd (script &rest args)
   "Prefer the uv-sync venv. `uv run` on macos-latest CI can exceed 8s before
@@ -111,12 +122,10 @@
                                     :error-output :stream
                                     :element-type 'character)))
     (handler-case
-        (%read-listen-line (uiop:process-info-output proc) timeout)
+        (%wait-peer-port proc "127.0.0.1" port timeout)
       (error (e)
-        (let ((err (%slurp-available (uiop:process-info-error-output proc)))
-              (out (%slurp-available (uiop:process-info-output proc))))
-          (ignore-errors (uiop:terminate-process proc :urgent t))
-          (error "~a~%cmd: ~s~%stderr:~%~a~%stdout:~%~a" e cmd err out))))
+        (ignore-errors (uiop:terminate-process proc :urgent t))
+        (error "~a~%cmd: ~s" e cmd)))
     (values proc port (format nil "http://127.0.0.1:~a" port))))
 
 (defun stop-peer-server (proc)
