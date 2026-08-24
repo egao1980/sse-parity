@@ -24,6 +24,7 @@
    (cl-repo:ensure-system-dependencies "sse-parity"
      :also-tests t
      :default-source :oci
+     :with '("dissect")
      :sources '(("dissect" :ql)
                 ("babel" :ql)
                 ("yason" :ql)
