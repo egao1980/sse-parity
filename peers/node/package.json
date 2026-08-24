@@ -1,0 +1,8 @@
+{
+  "name": "sse-parity-node-peers",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "eventsource": "^3.0.6"
+  }
+}
