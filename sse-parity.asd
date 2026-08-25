@@ -16,6 +16,7 @@
                "usocket"
                "yason"
                "rove")
+  :properties (:cl-repo (:ci (:with ("dissect") :sources (("dissect" :ql) ("babel" :ql) ("yason" :ql) ("alexandria" :ql)))))
   :serial t
   :pathname "src"
   :components ((:file "package")
