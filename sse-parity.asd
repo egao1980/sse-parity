@@ -14,9 +14,11 @@
                "babel"
                "uiop"
                "usocket"
-               "yason"
+               "json-protocol"
+               "json-backend-jzon"
                "rove")
-  :properties (:cl-repo (:ci (:with ("dissect"))))
+  :properties (:cl-repo (:ci (:with ("dissect")
+                             :sources (("json-protocol" :oci)))))
   :serial t
   :pathname "src"
   :components ((:file "package")
