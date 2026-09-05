@@ -17,8 +17,7 @@
                "json-protocol"
                "json-backend-jzon"
                "rove")
-  :properties (:cl-repo (:ci (:with ("dissect")
-                             :sources (("json-protocol" :oci)))))
+  :properties (:cl-repo (:ci (:with ("dissect"))))
   :serial t
   :pathname "src"
   :components ((:file "package")
