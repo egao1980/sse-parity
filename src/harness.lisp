@@ -19,12 +19,29 @@
                                                   :include-empty include-empty))
       (sse-protocol:close-sse conn))))
 
+(defun %json-key (key)
+  (intern (string-upcase (etypecase key
+                           (string key)
+                           (symbol (symbol-name key))
+                           (character (string key))))
+          :keyword))
+
+(defun %json-to-plist (value)
+  (cond
+    ((hash-table-p value)
+     (let ((acc '()))
+       (maphash (lambda (k v)
+                  (setf acc (list* (%json-key k) (%json-to-plist v) acc)))
+                value)
+       acc))
+    ((and (vectorp value) (not (stringp value)))
+     (map 'list #'%json-to-plist value))
+    ((eq value :null) nil)
+    (t value)))
+
 (defun parse-json-line (line)
   (when (and line (plusp (length (string-trim '(#\space) line))))
-    (let ((yason:*parse-object-as* :plist)
-          (yason:*parse-object-key-fn*
-           (lambda (k) (intern (string-upcase k) :keyword))))
-      (yason:parse line))))
+    (%json-to-plist (json-protocol:decode line))))
 
 (defun foreign-client-events (kind url)
   (let* ((cmd (client-command kind url))
