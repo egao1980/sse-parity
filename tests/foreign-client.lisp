@@ -1,7 +1,7 @@
 (in-package #:sse-parity/tests)
 
 (defparameter *foreign-client-routes*
-  '(:basic :multiline :typed :id :utf8 :comment))
+  '(:basic :multiline :typed :id :utf8 :comment :retry :hold))
 
 (defun check-foreign-client (client-kind)
   (with-peer-server (base :lisp)

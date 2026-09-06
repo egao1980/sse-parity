@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ROUTES = {
@@ -28,6 +29,21 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/last":
             last = self.headers.get("Last-Event-ID")
             body = "id: 2\ndata: resume\n\n" if last == "1" else "id: 1\ndata: first\n\n"
+        elif path == "/retry":
+            body = "retry: 50\ndata: retry-ok\n\n"
+        elif path == "/hold":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.wfile.write(b"data: held\n\n")
+            self.wfile.flush()
+            time.sleep(0.15)
+            self.wfile.write(b":ping\n\n")
+            self.wfile.write(b"data: after\n\n")
+            self.wfile.flush()
+            return
         else:
             body = ROUTES.get(path)
         if body is None:

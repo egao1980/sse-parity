@@ -5,7 +5,7 @@
   (format t "  peers: node=~a python=~a~%"
           (if (node-available-p) "yes" "no")
           (if (python-available-p) "yes" "no"))
-  (format t "  lisp client × foreign server: basic/multiline/typed/id/utf8/comment/last~%")
-  (format t "  foreign client × lisp server: same routes~%")
-  (format t "  gaps: long-lived chunked emit (clack finite body), reconnect/backoff, MIME~%")
+  (format t "  lisp client × foreign server: basic/multiline/typed/id/utf8/comment/last/retry/hold/reconnect~%")
+  (format t "  foreign client × lisp server: same plus /retry /hold (reconnect skip)~%")
+  (format t "  gaps: MIME/charset skip; foreign EventSource reconnect skip~%")
   (values))
