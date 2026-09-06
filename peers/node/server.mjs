@@ -15,22 +15,38 @@ function bodyFor(req) {
     const last = req.headers["last-event-id"];
     return last === "1" ? "id: 2\ndata: resume\n\n" : "id: 1\ndata: first\n\n";
   }
+  if (url.pathname === "/retry") {
+    return "retry: 50\ndata: retry-ok\n\n";
+  }
   return routes[url.pathname] ?? null;
 }
 
+const sseHeaders = {
+  "content-type": "text/event-stream; charset=utf-8",
+  "cache-control": "no-cache",
+  connection: "keep-alive",
+};
+
 const port = Number(process.argv[2] || process.env.SSE_PARITY_PORT || 0);
 const server = http.createServer((req, res) => {
+  const url = new URL(req.url, "http://127.0.0.1");
+  if (url.pathname === "/hold") {
+    res.writeHead(200, sseHeaders);
+    res.write("data: held\n\n");
+    setTimeout(() => {
+      res.write(":ping\n\n");
+      res.write("data: after\n\n");
+      res.end();
+    }, 150);
+    return;
+  }
   const body = bodyFor(req);
   if (body == null) {
     res.writeHead(404, { "content-type": "text/plain" });
     res.end("not found");
     return;
   }
-  res.writeHead(200, {
-    "content-type": "text/event-stream; charset=utf-8",
-    "cache-control": "no-cache",
-    connection: "keep-alive",
-  });
+  res.writeHead(200, sseHeaders);
   res.end(body);
 });
 

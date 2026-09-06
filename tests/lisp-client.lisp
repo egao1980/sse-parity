@@ -1,7 +1,7 @@
 (in-package #:sse-parity/tests)
 
 (defparameter *lisp-client-routes*
-  '(:basic :multiline :typed :id :utf8 :comment))
+  '(:basic :multiline :typed :id :utf8 :comment :retry :hold))
 
 (defun check-lisp-client (server-kind)
   (with-peer-server (base server-kind)
@@ -15,7 +15,13 @@
     (testing (format nil "~a last-resume" server-kind)
       (ok (events-match-p (lisp-open-events (concatenate 'string base "/last")
                                             :last-event-id "1")
-                          (expected-for :last-resume))))))
+                          (expected-for :last-resume))))
+    (testing (format nil "~a reconnect" server-kind)
+      (ok (events-match-p (lisp-open-events (route-url base :reconnect)
+                                            :reconnect t
+                                            :reconnect-limit 1
+                                            :default-retry 20)
+                          (expected-for :reconnect))))))
 
 (deftest lisp-client-lisp-server
   (check-lisp-client :lisp))

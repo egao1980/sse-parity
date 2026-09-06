@@ -33,6 +33,22 @@ two")))
                        (list (ev :id "2" :data "resume"))
                        (list (ev :id "1" :data "first"))))
                   env))
+        ((string= path "/retry")
+         (funcall (sse-backend-clack:make-sse-app
+                   (list (ev :retry 50 :data "retry-ok")))
+                  env))
+        ((string= path "/hold")
+         (funcall (sse-backend-clack:make-sse-app
+                   (lambda (e)
+                     (declare (ignore e))
+                     (lambda (stream)
+                       (sse-protocol:write-sse-event stream (ev :data "held"))
+                       (force-output stream)
+                       (sleep 0.15)
+                       (sse-protocol:write-sse-keepalive stream)
+                       (sse-protocol:write-sse-event stream (ev :data "after"))
+                       (force-output stream))))
+                  env))
         (t
          (let ((row (find path +routes+ :key #'second :test #'string=)))
            (if row

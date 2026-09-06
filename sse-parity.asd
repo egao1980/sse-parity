@@ -1,5 +1,5 @@
 (defsystem "sse-parity"
-  :version "0.1.1"
+  :version "0.1.2"
   :description "Interop canary: sse-protocol vs Node/Python SSE servers and clients"
   :author "egao1980"
   :license "MIT"

@@ -10,9 +10,14 @@
         :event (or (sse-protocol:sse-event-type ev) "message")
         :data (sse-protocol:sse-event-data ev)))
 
-(defun lisp-open-events (url &key last-event-id include-empty)
+(defun lisp-open-events (url &key last-event-id include-empty
+                               reconnect (reconnect-limit 1) (default-retry 50))
   (%bind-lisp-client)
-  (let ((conn (sse-protocol:open-sse url :last-event-id last-event-id)))
+  (let ((conn (sse-protocol:open-sse url
+                                    :last-event-id last-event-id
+                                    :reconnect reconnect
+                                    :reconnect-limit reconnect-limit
+                                    :default-retry default-retry)))
     (unwind-protect
          (mapcar #'event-plist
                  (sse-protocol:collect-sse-events conn
@@ -74,13 +79,18 @@ two" :event "message")))
     (:utf8 '((:data "αβγ ✔" :event "message")))
     (:comment '((:data "after" :event "message")))
     (:last-first '((:data "first" :id "1" :event "message")))
-    (:last-resume '((:data "resume" :id "2" :event "message")))))
+    (:last-resume '((:data "resume" :id "2" :event "message")))
+    (:retry '((:data "retry-ok" :event "message")))
+    (:hold '((:data "held" :event "message")
+             (:data "after" :event "message")))
+    (:reconnect '((:data "first" :id "1" :event "message")
+                  (:data "resume" :id "2" :event "message"))))))
 
 (defun route-url (base route-key &optional (last nil last-p))
   (declare (ignore last last-p))
-  (let ((path (if (eq route-key :last-resume)
-                  "/last"
-                  (if (eq route-key :last-first)
-                      "/last"
-                      (second (find route-key +routes+ :key #'first))))))
+  (let ((path (case route-key
+                ((:last-resume :last-first :reconnect) "/last")
+                (:retry "/retry")
+                (:hold "/hold")
+                (otherwise (second (find route-key +routes+ :key #'first))))))
     (concatenate 'string base path)))

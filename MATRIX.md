@@ -12,10 +12,11 @@ Status: `have` · `partial` · `missing` · `skip`
 | `/comment` | have | have | have | have | have |
 | `/last` first | have | have | have | have | have |
 | `/last` resume | have | have | have | skip | skip |
-| reconnect / `retry` | missing | missing | missing | missing | missing |
-| long-lived chunked | missing | n/a | n/a | missing | missing |
+| `/retry` | have | have | have | have | have |
+| reconnect | have | have | have | skip | skip |
+| `/hold` (chunked) | have | have | have | have | have |
 | MIME / charset | skip | skip | skip | skip | skip |
 
-`/last` resume for foreign clients is skipped: clients would need `SSE_PARITY_LAST_EVENT_ID` plus a second request; the Lisp client covers Last-Event-ID.
+`/last` resume and auto-reconnect for foreign clients are skipped: clients would need `SSE_PARITY_LAST_EVENT_ID` plus a second request (or a browser EventSource loop). The Lisp client covers `Last-Event-ID` and `open-sse :reconnect t`.
 
-Long-lived chunked: `sse-backend-clack` currently encodes a finite body (`make-sse-app`). Node/Python servers can hold the socket; the Lisp emit path cannot yet stream keepalives after the handler returns.
+Long-lived chunked: `sse-backend-clack:make-sse-app` returns a Clack body function. `/hold` writes an event, then a keepalive, then a delayed event on the live stream. Node/Python peers do the same with write/flush/sleep.

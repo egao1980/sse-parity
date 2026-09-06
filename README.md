@@ -40,9 +40,8 @@ See [MATRIX.md](MATRIX.md).
 
 ## Gaps this is meant to surface
 
-- Clack emit is a **finite** response body, not a long-lived chunked writer
-- No reconnect / `retry` backoff interop yet
-- MIME / charset / CORS are HTTP, not framing
+- MIME / charset / CORS are HTTP, not framing (still skip)
+- Foreign-client auto-reconnect / EventSource API (out of scope)
 
 ## License
 
