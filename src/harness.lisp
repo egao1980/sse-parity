@@ -84,7 +84,7 @@ two" :event "message")))
     (:hold '((:data "held" :event "message")
              (:data "after" :event "message")))
     (:reconnect '((:data "first" :id "1" :event "message")
-                  (:data "resume" :id "2" :event "message"))))))
+                  (:data "resume" :id "2" :event "message")))))
 
 (defun route-url (base route-key &optional (last nil last-p))
   (declare (ignore last last-p))
